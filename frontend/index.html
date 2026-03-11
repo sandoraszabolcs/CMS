@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSC CMS — Cardul de Mobilitate Socială</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; overflow: hidden; }
+
+        .header {
+            background: #1e293b; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #334155; height: 56px;
+        }
+        .header h1 { font-size: 18px; font-weight: 600; color: #f8fafc; }
+        .header h1 span { color: #38bdf8; }
+        .header .stats { display: flex; gap: 24px; font-size: 13px; color: #94a3b8; }
+        .header .stats .stat-value { color: #f8fafc; font-weight: 600; }
+
+        .container { display: flex; height: calc(100vh - 56px); }
+
+        .map-panel { flex: 0 0 60%; position: relative; }
+        #map { height: 100%; width: 100%; }
+
+        .right-panel { flex: 0 0 40%; display: flex; flex-direction: column; border-left: 1px solid #334155; }
+
+        .od-panel { flex: 0 0 50%; padding: 16px; overflow: auto; border-bottom: 1px solid #334155; }
+        .od-panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .od-grid { display: grid; gap: 2px; font-size: 11px; }
+        .od-cell {
+            display: flex; align-items: center; justify-content: center;
+            padding: 6px 4px; border-radius: 4px; min-height: 32px; text-align: center;
+        }
+        .od-header { background: #1e293b; color: #94a3b8; font-weight: 600; font-size: 10px; }
+        .od-value { color: #f8fafc; font-weight: 500; cursor: default; }
+
+        .feed-panel { flex: 1; padding: 16px; overflow: auto; }
+        .feed-panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .event-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            background: #1e293b; border-radius: 8px; margin-bottom: 6px;
+            font-size: 12px; animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .event-badge {
+            padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+            text-transform: uppercase; min-width: 70px; text-align: center;
+        }
+        .badge-checkin { background: #065f46; color: #6ee7b7; }
+        .badge-checkout { background: #7c2d12; color: #fdba74; }
+
+        .category-badge {
+            padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;
+            background: #312e81; color: #a5b4fc;
+        }
+
+        .event-time { margin-left: auto; color: #64748b; font-size: 11px; white-space: nowrap; }
+        .event-details { display: flex; flex-direction: column; gap: 2px; }
+        .event-details .name { color: #f8fafc; font-weight: 500; }
+        .event-details .stop { color: #94a3b8; }
+
+        .leaflet-popup-content-wrapper { background: #1e293b; color: #e2e8f0; border-radius: 8px; }
+        .leaflet-popup-tip { background: #1e293b; }
+        .leaflet-popup-content { margin: 8px 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span>FSC</span> Cardul de Mobilitate Socială — Linia 41 București</h1>
+        <div class="stats">
+            <div>Călătorii azi: <span class="stat-value" id="stat-trips">0</span></div>
+            <div>Origine populară: <span class="stat-value" id="stat-origin">—</span></div>
+            <div>Destinație populară: <span class="stat-value" id="stat-dest">—</span></div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="map-panel">
+            <div id="map"></div>
+        </div>
+        <div class="right-panel">
+            <div class="od-panel">
+                <h2>Matrice Origine-Destinație</h2>
+                <div id="od-grid" class="od-grid"></div>
+            </div>
+            <div class="feed-panel">
+                <h2>Evenimente Live</h2>
+                <div id="event-feed"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ─── API Module ───
+const APIModule = (() => {
+    const base = '/api/v1';
+
+    async function get(path) {
+        const res = await fetch(base + path);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+    }
+
+    return {
+        getStops:        () => get('/stops'),
+        getVehicles:     () => get('/vehicles'),
+        getODMatrix:     () => get('/od-matrix'),
+        getRecentEvents: () => get('/events/recent'),
+        getStats:        () => get('/stats'),
+    };
+})();
+
+// ─── Map Module ───
+const MapModule = (() => {
+    let map, stopMarkers = {}, vehicleMarkers = {};
+
+    const busIcon = L.divIcon({
+        html: '<div style="background:#3b82f6;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;border:2px solid #1e40af;box-shadow:0 2px 8px rgba(0,0,0,0.3);">🚌</div>',
+        iconSize: [28, 28], iconAnchor: [14, 14], className: ''
+    });
+
+    const stopIcon = L.divIcon({
+        html: '<div style="background:#f59e0b;width:12px;height:12px;border-radius:50%;border:2px solid #d97706;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
+        iconSize: [12, 12], iconAnchor: [6, 6], className: ''
+    });
+
+    function init() {
+        map = L.map('map', { zoomControl: true }).setView([44.4478, 26.0934], 14);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            maxZoom: 19
+        }).addTo(map);
+    }
+
+    function renderStops(stops) {
+        const coords = [];
+        stops.forEach(s => {
+            const marker = L.marker([s.lat, s.lng], { icon: stopIcon })
+                .bindPopup(`<b>${s.name}</b><br>ID: ${s.id}`)
+                .addTo(map);
+            stopMarkers[s.id] = marker;
+            coords.push([s.lat, s.lng]);
+        });
+        // Draw route line.
+        if (coords.length > 1) {
+            coords.push(coords[0]); // close the loop
+            L.polyline(coords, { color: '#475569', weight: 2, dashArray: '6,8' }).addTo(map);
+        }
+    }
+
+    function updateVehicles(vehicles) {
+        vehicles.forEach(v => {
+            if (vehicleMarkers[v.id]) {
+                vehicleMarkers[v.id].setLatLng([v.lat, v.lng]);
+            } else {
+                vehicleMarkers[v.id] = L.marker([v.lat, v.lng], { icon: busIcon })
+                    .bindPopup(`<b>${v.id}</b><br>Linia ${v.line}`)
+                    .addTo(map);
+            }
+        });
+    }
+
+    function showEventPopup(event) {
+        const color = event.event_type === 'checkin' ? '#6ee7b7' : '#fdba74';
+        const label = event.event_type === 'checkin' ? 'CHECK-IN' : 'CHECK-OUT';
+        L.popup({ closeOnClick: true, autoClose: true, className: '' })
+            .setLatLng([event.lat, event.lng])
+            .setContent(`<b style="color:${color}">${label}</b><br>${event.card_id}<br>${event.stop_id}`)
+            .openOn(map);
+    }
+
+    return { init, renderStops, updateVehicles, showEventPopup };
+})();
+
+// ─── OD Module ───
+const ODModule = (() => {
+    function render(matrix, stops) {
+        const grid = document.getElementById('od-grid');
+        grid.innerHTML = '';
+
+        const stopIds = stops.map(s => s.id);
+        const stopNames = {};
+        stops.forEach(s => { stopNames[s.id] = s.name; });
+
+        // Build lookup.
+        const lookup = {};
+        let maxCount = 1;
+        (matrix || []).forEach(r => {
+            const key = r.origin_stop + '→' + r.destination_stop;
+            lookup[key] = r.trip_count;
+            if (r.trip_count > maxCount) maxCount = r.trip_count;
+        });
+
+        const cols = stopIds.length + 1;
+        grid.style.gridTemplateColumns = `100px repeat(${stopIds.length}, 1fr)`;
+
+        // Header row: empty corner + destination names.
+        const corner = document.createElement('div');
+        corner.className = 'od-cell od-header';
+        corner.textContent = 'O → D';
+        grid.appendChild(corner);
+
+        stopIds.forEach(id => {
+            const cell = document.createElement('div');
+            cell.className = 'od-cell od-header';
+            cell.textContent = stopNames[id].replace('Piața ', 'P.').substring(0, 10);
+            grid.appendChild(cell);
+        });
+
+        // Data rows.
+        stopIds.forEach(origId => {
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'od-cell od-header';
+            rowHeader.textContent = stopNames[origId].replace('Piața ', 'P.').substring(0, 10);
+            grid.appendChild(rowHeader);
+
+            stopIds.forEach(destId => {
+                const cell = document.createElement('div');
+                const key = origId + '→' + destId;
+                const count = lookup[key] || 0;
+                const intensity = count / maxCount;
+
+                if (origId === destId) {
+                    cell.className = 'od-cell';
+                    cell.style.background = '#0f172a';
+                    cell.textContent = '—';
+                    cell.style.color = '#334155';
+                } else {
+                    cell.className = 'od-cell od-value';
+                    const r = Math.round(14 + intensity * 45);
+                    const g = Math.round(23 + intensity * 80);
+                    const b = Math.round(42 + intensity * 140);
+                    cell.style.background = `rgb(${r},${g},${b})`;
+                    cell.textContent = count || '';
+                    cell.title = `${stopNames[origId]} → ${stopNames[destId]}: ${count} călătorii`;
+                }
+                grid.appendChild(cell);
+            });
+        });
+    }
+
+    return { render };
+})();
+
+// ─── Feed Module ───
+const FeedModule = (() => {
+    const MAX_EVENTS = 30;
+    const categoryLabels = {
+        student: 'Student', university: 'Universitar',
+        pensioner: 'Pensionar', disabled: 'Dizabilitate', veteran: 'Veteran'
+    };
+
+    function addEvent(event, prepend) {
+        const feed = document.getElementById('event-feed');
+        const item = document.createElement('div');
+        item.className = 'event-item';
+
+        const badgeClass = event.event_type === 'checkin' ? 'badge-checkin' : 'badge-checkout';
+        const label = event.event_type === 'checkin' ? 'Check-in' : 'Check-out';
+        const time = event.created_at ? new Date(event.created_at).toLocaleTimeString('ro-RO') : '';
+        const stopName = event.stop_name || event.stop_id;
+        const passengerName = event.passenger_name || event.card_id;
+        const category = categoryLabels[event.passenger_category] || event.passenger_category || '';
+
+        item.innerHTML = `
+            <span class="event-badge ${badgeClass}">${label}</span>
+            <div class="event-details">
+                <span class="name">${passengerName}</span>
+                <span class="stop">${stopName} · ${event.vehicle_id}</span>
+            </div>
+            ${category ? `<span class="category-badge">${category}</span>` : ''}
+            <span class="event-time">${time}</span>
+        `;
+
+        if (prepend) {
+            feed.prepend(item);
+        } else {
+            feed.appendChild(item);
+        }
+
+        // Trim old events.
+        while (feed.children.length > MAX_EVENTS) {
+            feed.removeChild(feed.lastChild);
+        }
+    }
+
+    function addEvents(events) {
+        events.forEach(e => addEvent(e, false));
+    }
+
+    return { addEvent, addEvents };
+})();
+
+// ─── WebSocket Module ───
+const WSModule = (() => {
+    let ws = null;
+    let reconnectDelay = 1000;
+    const MAX_DELAY = 30000;
+    let onEvent = null;
+
+    function connect() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+        ws.onopen = () => {
+            console.log('WS connected');
+            reconnectDelay = 1000;
+        };
+
+        ws.onmessage = (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                if (msg.type === 'initial' && Array.isArray(msg.data)) {
+                    // Initial state handled by main init, ignore duplicates.
+                } else if (msg.type === 'event' && onEvent) {
+                    onEvent(msg.data);
+                }
+            } catch (e) {
+                console.error('WS parse error:', e);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log(`WS closed, reconnecting in ${reconnectDelay}ms`);
+            setTimeout(connect, reconnectDelay);
+            reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY);
+        };
+
+        ws.onerror = (err) => {
+            console.error('WS error:', err);
+            ws.close();
+        };
+    }
+
+    function setEventHandler(handler) {
+        onEvent = handler;
+    }
+
+    return { connect, setEventHandler };
+})();
+
+// ─── Stats Module ───
+const StatsModule = (() => {
+    function update(stats) {
+        document.getElementById('stat-trips').textContent = stats.total_trips_today || 0;
+        document.getElementById('stat-origin').textContent = stats.most_popular_origin || '—';
+        document.getElementById('stat-dest').textContent = stats.most_popular_destination || '—';
+    }
+    return { update };
+})();
+
+// ─── Main ───
+(async () => {
+    MapModule.init();
+
+    // Load initial data in parallel.
+    const [stops, vehicles, matrix, recentEvents, stats] = await Promise.all([
+        APIModule.getStops(),
+        APIModule.getVehicles(),
+        APIModule.getODMatrix().catch(() => []),
+        APIModule.getRecentEvents().catch(() => []),
+        APIModule.getStats().catch(() => ({})),
+    ]);
+
+    MapModule.renderStops(stops);
+    MapModule.updateVehicles(vehicles);
+    ODModule.render(matrix, stops);
+    FeedModule.addEvents(recentEvents);
+    StatsModule.update(stats);
+
+    // WebSocket for live updates.
+    WSModule.setEventHandler((event) => {
+        FeedModule.addEvent(event, true);
+        MapModule.showEventPopup(event);
+    });
+    WSModule.connect();
+
+    // Periodic refresh: vehicles every 3s, OD matrix + stats every 15s.
+    setInterval(async () => {
+        try {
+            const v = await APIModule.getVehicles();
+            MapModule.updateVehicles(v);
+        } catch (e) { console.error('Vehicle refresh error:', e); }
+    }, 3000);
+
+    setInterval(async () => {
+        try {
+            const [m, s] = await Promise.all([
+                APIModule.getODMatrix().catch(() => []),
+                APIModule.getStats().catch(() => ({})),
+            ]);
+            ODModule.render(m, stops);
+            StatsModule.update(s);
+        } catch (e) { console.error('OD/stats refresh error:', e); }
+    }, 15000);
+})();
+</script>
+</body>
+</html>
