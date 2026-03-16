@@ -13,7 +13,7 @@ import (
 
 // Handler holds all HTTP handler dependencies.
 type Handler struct {
-	validation *service.ValidationService
+	validation service.Validator
 	vehicles   repository.VehicleRepository
 	stops      repository.StopRepository
 	odMatrix   repository.ODMatrixRepository
@@ -24,7 +24,7 @@ type Handler struct {
 
 // NewHandler creates a new Handler with all dependencies.
 func NewHandler(
-	validation *service.ValidationService,
+	validation service.Validator,
 	vehicles repository.VehicleRepository,
 	stops repository.StopRepository,
 	odMatrix repository.ODMatrixRepository,
@@ -58,7 +58,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 }
 
 func (h *Handler) checkin(c *gin.Context) {
-	var req service.CheckinRequest
+	var req domain.CheckinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondError(c, http.StatusBadRequest, CodeValidationError, err.Error())
 		return
@@ -73,7 +73,7 @@ func (h *Handler) checkin(c *gin.Context) {
 }
 
 func (h *Handler) checkout(c *gin.Context) {
-	var req service.CheckoutRequest
+	var req domain.CheckoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondError(c, http.StatusBadRequest, CodeValidationError, err.Error())
 		return

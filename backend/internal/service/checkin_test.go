@@ -104,7 +104,7 @@ func TestCheckin(t *testing.T) {
 			// Use nil redis client — publishEvent will log error but not crash.
 			svc := NewValidationService(passRepo, valRepo, nil, slog.Default())
 
-			req := CheckinRequest{
+			req := domain.CheckinRequest{
 				CardID:    "CMS-001",
 				VehicleID: "BUS-101",
 				StopID:    "S2",

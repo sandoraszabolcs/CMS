@@ -12,6 +12,12 @@ import (
 	"github.com/szabolcs/cms/internal/repository"
 )
 
+// Validator defines the business operations for check-in/checkout.
+type Validator interface {
+	Checkin(ctx context.Context, req domain.CheckinRequest) (domain.ValidationEvent, error)
+	Checkout(ctx context.Context, req domain.CheckoutRequest) (domain.ValidationEvent, error)
+}
+
 // ValidationService handles checkin/checkout business logic.
 type ValidationService struct {
 	passengers  repository.PassengerRepository
@@ -35,27 +41,9 @@ func NewValidationService(
 	}
 }
 
-// CheckinRequest holds the incoming checkin data.
-type CheckinRequest struct {
-	CardID    string  `json:"card_id"    binding:"required"`
-	VehicleID string  `json:"vehicle_id" binding:"required"`
-	StopID    string  `json:"stop_id"    binding:"required"`
-	Lat       float64 `json:"lat"        binding:"required"`
-	Lng       float64 `json:"lng"        binding:"required"`
-}
-
-// CheckoutRequest holds the incoming checkout data.
-type CheckoutRequest struct {
-	CardID    string  `json:"card_id"    binding:"required"`
-	VehicleID string  `json:"vehicle_id" binding:"required"`
-	StopID    string  `json:"stop_id"    binding:"required"`
-	Lat       float64 `json:"lat"        binding:"required"`
-	Lng       float64 `json:"lng"        binding:"required"`
-}
-
 // Checkin validates a passenger and records a checkin event.
 // If an open checkin exists, it auto-checkouts first within a transaction.
-func (s *ValidationService) Checkin(ctx context.Context, req CheckinRequest) (domain.ValidationEvent, error) {
+func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinRequest) (domain.ValidationEvent, error) {
 	passenger, err := s.passengers.FindByCardID(ctx, req.CardID)
 	if err != nil {
 		return domain.ValidationEvent{}, err
@@ -130,7 +118,7 @@ func (s *ValidationService) Checkin(ctx context.Context, req CheckinRequest) (do
 }
 
 // Checkout records a checkout event for a passenger.
-func (s *ValidationService) Checkout(ctx context.Context, req CheckoutRequest) (domain.ValidationEvent, error) {
+func (s *ValidationService) Checkout(ctx context.Context, req domain.CheckoutRequest) (domain.ValidationEvent, error) {
 	passenger, err := s.passengers.FindByCardID(ctx, req.CardID)
 	if err != nil {
 		return domain.ValidationEvent{}, err

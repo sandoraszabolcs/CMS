@@ -83,3 +83,21 @@ type Stats struct {
 	MostPopularDestination string         `json:"most_popular_destination"`
 	TripsByCategory        map[string]int `json:"trips_by_category"`
 }
+
+// CheckinRequest holds the incoming checkin data.
+type CheckinRequest struct {
+	CardID    string  `json:"card_id"    binding:"required"`
+	VehicleID string  `json:"vehicle_id" binding:"required"`
+	StopID    string  `json:"stop_id"    binding:"required"`
+	Lat       float64 `json:"lat"        binding:"required"`
+	Lng       float64 `json:"lng"        binding:"required"`
+}
+
+// CheckoutRequest holds the incoming checkout data.
+type CheckoutRequest struct {
+	CardID    string  `json:"card_id"    binding:"required"`
+	VehicleID string  `json:"vehicle_id" binding:"required"`
+	StopID    string  `json:"stop_id"    binding:"required"`
+	Lat       float64 `json:"lat"        binding:"required"`
+	Lng       float64 `json:"lng"        binding:"required"`
+}
