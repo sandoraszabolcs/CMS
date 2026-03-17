@@ -22,6 +22,7 @@ type Validator interface {
 type ValidationService struct {
 	passengers  repository.PassengerRepository
 	validations repository.ValidationRepository
+	stops       repository.StopRepository
 	rdb         *redis.Client
 	logger      *slog.Logger
 }
@@ -30,12 +31,14 @@ type ValidationService struct {
 func NewValidationService(
 	passengers repository.PassengerRepository,
 	validations repository.ValidationRepository,
+	stops repository.StopRepository,
 	rdb *redis.Client,
 	logger *slog.Logger,
 ) *ValidationService {
 	return &ValidationService{
 		passengers:  passengers,
 		validations: validations,
+		stops:       stops,
 		rdb:         rdb,
 		logger:      logger,
 	}
@@ -50,6 +53,11 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 	}
 	if !passenger.IsActive {
 		return domain.ValidationEvent{}, domain.ErrPassengerInactive
+	}
+
+	stop, err := s.stops.FindByID(ctx, req.StopID)
+	if err != nil {
+		return domain.ValidationEvent{}, err
 	}
 
 	tx, err := s.validations.BeginTx(ctx)
@@ -76,9 +84,9 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 			CardID:    req.CardID,
 			VehicleID: openCheckin.VehicleID,
 			EventType: domain.EventCheckout,
-			StopID:    req.StopID,
-			Lat:       req.Lat,
-			Lng:       req.Lng,
+			StopID:    stop.ID,
+			Lat:       stop.Lat,
+			Lng:       stop.Lng,
 		}
 		checkoutEvent, insertErr := s.validations.InsertEventTx(ctx, tx, autoCheckout)
 		if insertErr != nil {
@@ -87,7 +95,7 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 		}
 		s.logger.Info("auto-checkout performed",
 			"card_id", req.CardID,
-			"stop_id", req.StopID,
+			"stop_id", stop.ID,
 			"checkout_id", checkoutEvent.ID,
 		)
 		s.publishEvent(ctx, checkoutEvent)
@@ -98,9 +106,9 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 		CardID:    req.CardID,
 		VehicleID: req.VehicleID,
 		EventType: domain.EventCheckin,
-		StopID:    req.StopID,
-		Lat:       req.Lat,
-		Lng:       req.Lng,
+		StopID:    stop.ID,
+		Lat:       stop.Lat,
+		Lng:       stop.Lng,
 	}
 	result, err := s.validations.InsertEventTx(ctx, tx, checkinEvent)
 	if err != nil {
@@ -127,13 +135,18 @@ func (s *ValidationService) Checkout(ctx context.Context, req domain.CheckoutReq
 		return domain.ValidationEvent{}, domain.ErrPassengerInactive
 	}
 
+	stop, err := s.stops.FindByID(ctx, req.StopID)
+	if err != nil {
+		return domain.ValidationEvent{}, err
+	}
+
 	event := domain.ValidationEvent{
 		CardID:    req.CardID,
 		VehicleID: req.VehicleID,
 		EventType: domain.EventCheckout,
-		StopID:    req.StopID,
-		Lat:       req.Lat,
-		Lng:       req.Lng,
+		StopID:    stop.ID,
+		Lat:       stop.Lat,
+		Lng:       stop.Lng,
 	}
 	result, err := s.validations.InsertEvent(ctx, event)
 	if err != nil {

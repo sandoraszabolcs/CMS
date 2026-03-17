@@ -69,7 +69,7 @@ func main() {
 	statsRepo := repository.NewPostgresStatsRepo(db)
 
 	// Build services.
-	validationSvc := service.NewValidationService(passengerRepo, validationRepo, rdb, logger)
+	validationSvc := service.NewValidationService(passengerRepo, validationRepo, stopRepo, rdb, logger)
 	vehicleSvc := service.NewVehicleService(vehicleRepo)
 	stopSvc := service.NewStopService(stopRepo)
 	odMatrixSvc := service.NewODMatrixService(odMatrixRepo)

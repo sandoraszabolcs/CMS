@@ -20,6 +20,19 @@ func (m *mockPassengerRepo) FindByCardID(_ context.Context, _ string) (domain.Pa
 	return m.passenger, m.err
 }
 
+type mockStopRepo struct {
+	stop domain.Stop
+	err  error
+}
+
+func (m *mockStopRepo) FindAll(_ context.Context) ([]domain.Stop, error) {
+	return []domain.Stop{m.stop}, nil
+}
+
+func (m *mockStopRepo) FindByID(_ context.Context, _ string) (domain.Stop, error) {
+	return m.stop, m.err
+}
+
 type mockValidationRepo struct {
 	openCheckin    domain.ValidationEvent
 	openCheckinErr error
@@ -100,16 +113,15 @@ func TestCheckin(t *testing.T) {
 				openCheckin:    tt.openCheckin,
 				openCheckinErr: tt.openCheckinErr,
 			}
+			stopRepo := &mockStopRepo{stop: domain.Stop{ID: "S2", Name: "Piața Unirii", Lat: 44.4361, Lng: 26.1006}}
 
 			// Use nil redis client — publishEvent will log error but not crash.
-			svc := NewValidationService(passRepo, valRepo, nil, slog.Default())
+			svc := NewValidationService(passRepo, valRepo, stopRepo, nil, slog.Default())
 
 			req := domain.CheckinRequest{
 				CardID:    "CMS-001",
 				VehicleID: "BUS-101",
 				StopID:    "S2",
-				Lat:       44.4361,
-				Lng:       26.1006,
 			}
 
 			_, err := svc.Checkin(context.Background(), req)

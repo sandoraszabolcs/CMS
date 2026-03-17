@@ -30,6 +30,7 @@ type VehicleRepository interface {
 // StopRepository provides access to stop data.
 type StopRepository interface {
 	FindAll(ctx context.Context) ([]domain.Stop, error)
+	FindByID(ctx context.Context, id string) (domain.Stop, error)
 }
 
 // ODMatrixRepository provides access to the OD matrix materialized view.
