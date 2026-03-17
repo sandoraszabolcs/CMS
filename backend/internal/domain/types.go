@@ -6,6 +6,7 @@ import "time"
 type PassengerCategory string
 
 const (
+	CategoryRegular    PassengerCategory = "regular"    // regular passenger, no subsidy
 	CategoryStudent    PassengerCategory = "student"    // Legea 198/2023
 	CategoryUniversity PassengerCategory = "university" // Legea 199/2023
 	CategoryPensioner  PassengerCategory = "pensioner"  // Legea 147/2000
@@ -39,7 +40,7 @@ type Vehicle struct {
 	UpdatedAt     time.Time `db:"updated_at"      json:"updated_at"`
 }
 
-// Passenger represents a CMS card holder.
+// Passenger represents a CMS card holder — subsidized or regular.
 type Passenger struct {
 	CardID   string            `db:"card_id"   json:"card_id"`
 	Name     string            `db:"name"      json:"name"`

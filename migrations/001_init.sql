@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
 CREATE TABLE IF NOT EXISTS passengers (
     card_id   VARCHAR(64) PRIMARY KEY,
     name      VARCHAR(128) NOT NULL,
-    category  VARCHAR(32)  NOT NULL,
+    category  VARCHAR(32)  NOT NULL DEFAULT 'regular',
     is_active BOOLEAN      NOT NULL DEFAULT TRUE
 );
 
@@ -81,10 +81,13 @@ INSERT INTO vehicles (id, line, current_stop_id, lat, lng) VALUES
     ('BUS-102', '41', 'S3', 44.4478, 26.0934),
     ('BUS-103', '41', 'S5', 44.4634, 26.0912);
 
--- Seed data: 5 passengers with different CMS categories
+-- Seed data: passengers — subsidized and regular
 INSERT INTO passengers (card_id, name, category, is_active) VALUES
     ('CMS-001', 'Ion Popescu',      'student',    TRUE),
     ('CMS-002', 'Maria Ionescu',    'university', TRUE),
     ('CMS-003', 'Gheorghe Marin',   'pensioner',  TRUE),
     ('CMS-004', 'Elena Dumitrescu', 'disabled',   TRUE),
-    ('CMS-005', 'Vasile Stanescu',  'veteran',    TRUE);
+    ('CMS-005', 'Vasile Stanescu',  'veteran',    TRUE),
+    ('CMS-006', 'Andrei Radu',      'regular',    TRUE),
+    ('CMS-007', 'Cristina Popa',    'regular',    TRUE),
+    ('CMS-008', 'Mihai Georgescu',  'regular',    TRUE);

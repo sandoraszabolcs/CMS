@@ -94,7 +94,7 @@ func (s *simulator) run(ctx context.Context, vehicles []domain.Vehicle) {
 	ticker := time.NewTicker(s.deps.Interval)
 	defer ticker.Stop()
 
-	passengers := []string{"CMS-001", "CMS-002", "CMS-003", "CMS-004", "CMS-005"}
+	passengers := []string{"CMS-001", "CMS-002", "CMS-003", "CMS-004", "CMS-005", "CMS-006", "CMS-007", "CMS-008"}
 
 	for {
 		select {
