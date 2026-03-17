@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 	"github.com/szabolcs/cms/internal/infrastructure"
-	"github.com/szabolcs/cms/internal/repository"
+	"github.com/szabolcs/cms/internal/service"
 )
 
 var upgrader = websocket.Upgrader{
@@ -21,7 +21,7 @@ var upgrader = websocket.Upgrader{
 // Hub manages WebSocket connections and broadcasts events via Redis pub/sub.
 type Hub struct {
 	rdb    *redis.Client
-	events repository.ValidationRepository
+	events service.EventLister
 	logger *slog.Logger
 
 	register   chan *websocket.Conn
@@ -32,7 +32,7 @@ type Hub struct {
 }
 
 // NewHub creates a new WebSocket Hub.
-func NewHub(rdb *redis.Client, events repository.ValidationRepository, logger *slog.Logger) *Hub {
+func NewHub(rdb *redis.Client, events service.EventLister, logger *slog.Logger) *Hub {
 	return &Hub{
 		rdb:        rdb,
 		events:     events,

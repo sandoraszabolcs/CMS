@@ -80,7 +80,7 @@ func main() {
 	handler := transporthttp.NewHandler(validationSvc, vehicleSvc, stopSvc, odMatrixSvc, statsSvc, eventSvc, logger)
 
 	// Build WebSocket hub.
-	hub := ws.NewHub(rdb, validationRepo, logger)
+	hub := ws.NewHub(rdb, eventSvc, logger)
 
 	// Set up Gin.
 	gin.SetMode(gin.ReleaseMode)
