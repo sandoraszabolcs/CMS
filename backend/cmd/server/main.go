@@ -70,9 +70,14 @@ func main() {
 
 	// Build services.
 	validationSvc := service.NewValidationService(passengerRepo, validationRepo, rdb, logger)
+	vehicleSvc := service.NewVehicleService(vehicleRepo)
+	stopSvc := service.NewStopService(stopRepo)
+	odMatrixSvc := service.NewODMatrixService(odMatrixRepo)
+	statsSvc := service.NewStatsService(statsRepo)
+	eventSvc := service.NewEventService(validationRepo)
 
 	// Build HTTP handler.
-	handler := transporthttp.NewHandler(validationSvc, vehicleRepo, stopRepo, odMatrixRepo, statsRepo, validationRepo, logger)
+	handler := transporthttp.NewHandler(validationSvc, vehicleSvc, stopSvc, odMatrixSvc, statsSvc, eventSvc, logger)
 
 	// Build WebSocket hub.
 	hub := ws.NewHub(rdb, validationRepo, logger)

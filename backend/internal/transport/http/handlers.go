@@ -7,29 +7,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/szabolcs/cms/internal/domain"
-	"github.com/szabolcs/cms/internal/repository"
 	"github.com/szabolcs/cms/internal/service"
 )
 
 // Handler holds all HTTP handler dependencies.
 type Handler struct {
 	validation service.Validator
-	vehicles   repository.VehicleRepository
-	stops      repository.StopRepository
-	odMatrix   repository.ODMatrixRepository
-	stats      repository.StatsRepository
-	events     repository.ValidationRepository
+	vehicles   service.VehicleLister
+	stops      service.StopLister
+	odMatrix   service.ODMatrixReader
+	stats      service.StatsReader
+	events     service.EventLister
 	logger     *slog.Logger
 }
 
 // NewHandler creates a new Handler with all dependencies.
 func NewHandler(
 	validation service.Validator,
-	vehicles repository.VehicleRepository,
-	stops repository.StopRepository,
-	odMatrix repository.ODMatrixRepository,
-	stats repository.StatsRepository,
-	events repository.ValidationRepository,
+	vehicles service.VehicleLister,
+	stops service.StopLister,
+	odMatrix service.ODMatrixReader,
+	stats service.StatsReader,
+	events service.EventLister,
 	logger *slog.Logger,
 ) *Handler {
 	return &Handler{
@@ -88,7 +87,7 @@ func (h *Handler) checkout(c *gin.Context) {
 }
 
 func (h *Handler) getODMatrix(c *gin.Context) {
-	rows, err := h.odMatrix.GetAll(c.Request.Context())
+	rows, err := h.odMatrix.GetODMatrix(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get OD matrix", "error", err)
 		respondError(c, http.StatusInternalServerError, CodeInternalError, "failed to fetch OD matrix")
@@ -98,7 +97,7 @@ func (h *Handler) getODMatrix(c *gin.Context) {
 }
 
 func (h *Handler) getVehicles(c *gin.Context) {
-	vehicles, err := h.vehicles.FindAll(c.Request.Context())
+	vehicles, err := h.vehicles.ListVehicles(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get vehicles", "error", err)
 		respondError(c, http.StatusInternalServerError, CodeInternalError, "failed to fetch vehicles")
@@ -108,7 +107,7 @@ func (h *Handler) getVehicles(c *gin.Context) {
 }
 
 func (h *Handler) getStops(c *gin.Context) {
-	stops, err := h.stops.FindAll(c.Request.Context())
+	stops, err := h.stops.ListStops(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get stops", "error", err)
 		respondError(c, http.StatusInternalServerError, CodeInternalError, "failed to fetch stops")
