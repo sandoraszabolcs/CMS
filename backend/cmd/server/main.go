@@ -53,6 +53,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Run migrations.
+	if err := infrastructure.RunMigrations(db, "./migrations", logger); err != nil {
+		logger.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
 	// Connect to Redis.
 	rdb, err := infrastructure.NewRedisClient(ctx, cfg.RedisAddr)
 	if err != nil {
@@ -103,6 +109,7 @@ func main() {
 		Validations: validationRepo,
 		Vehicles:    vehicleRepo,
 		Stops:       stopRepo,
+		Passengers:  passengerRepo,
 		Redis:       rdb,
 		Logger:      logger,
 		Interval:    cfg.SimulatorInterval,

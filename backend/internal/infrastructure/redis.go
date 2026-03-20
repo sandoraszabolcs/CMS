@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -11,10 +12,19 @@ import (
 const RedisChannelValidationEvents = "validation_events"
 
 // NewRedisClient creates a configured Redis client.
+// addr can be a full URL (redis://...) or a plain host:port.
 func NewRedisClient(ctx context.Context, addr string) (*redis.Client, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr: addr,
-	})
+	var opts *redis.Options
+	if strings.HasPrefix(addr, "redis://") || strings.HasPrefix(addr, "rediss://") {
+		var err error
+		opts, err = redis.ParseURL(addr)
+		if err != nil {
+			return nil, fmt.Errorf("parsing redis URL: %w", err)
+		}
+	} else {
+		opts = &redis.Options{Addr: addr}
+	}
+	client := redis.NewClient(opts)
 
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("pinging redis: %w", err)

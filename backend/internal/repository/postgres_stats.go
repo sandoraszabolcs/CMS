@@ -21,6 +21,7 @@ func NewPostgresStatsRepo(db *sqlx.DB) StatsRepository {
 func (r *postgresStatsRepo) GetStats(ctx context.Context) (domain.Stats, error) {
 	stats := domain.Stats{
 		TripsByCategory: make(map[string]int),
+		TripsByHour:     make(map[int]int),
 	}
 
 	// Total completed trips today (count of checkouts today).
@@ -66,6 +67,25 @@ func (r *postgresStatsRepo) GetStats(ctx context.Context) (domain.Stats, error) 
 	}
 	for _, c := range cats {
 		stats.TripsByCategory[c.Category] = c.Count
+	}
+
+	// Trips by hour of day.
+	type hourCount struct {
+		Hour  int `db:"hour"`
+		Count int `db:"count"`
+	}
+	var hours []hourCount
+	err = r.db.SelectContext(ctx, &hours, `
+		SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count
+		FROM validation_events
+		WHERE created_at::date = CURRENT_DATE
+		GROUP BY 1
+		ORDER BY 1`)
+	if err != nil {
+		return domain.Stats{}, err
+	}
+	for _, h := range hours {
+		stats.TripsByHour[h.Hour] = h.Count
 	}
 
 	return stats, nil

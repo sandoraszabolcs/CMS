@@ -98,7 +98,7 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 			"stop_id", stop.ID,
 			"checkout_id", checkoutEvent.ID,
 		)
-		s.publishEvent(ctx, checkoutEvent)
+		s.publishEvent(ctx, checkoutEvent, passenger, stop)
 	}
 
 	// Insert the new checkin.
@@ -121,7 +121,7 @@ func (s *ValidationService) Checkin(ctx context.Context, req domain.CheckinReque
 		}
 	}
 
-	s.publishEvent(ctx, result)
+	s.publishEvent(ctx, result, passenger, stop)
 	return result, nil
 }
 
@@ -153,15 +153,21 @@ func (s *ValidationService) Checkout(ctx context.Context, req domain.CheckoutReq
 		return domain.ValidationEvent{}, err
 	}
 
-	s.publishEvent(ctx, result)
+	s.publishEvent(ctx, result, passenger, stop)
 	return result, nil
 }
 
-func (s *ValidationService) publishEvent(ctx context.Context, event domain.ValidationEvent) {
+func (s *ValidationService) publishEvent(ctx context.Context, event domain.ValidationEvent, passenger domain.Passenger, stop domain.Stop) {
 	if s.rdb == nil {
 		return
 	}
-	data, err := json.Marshal(event)
+	rich := domain.RecentEvent{
+		ValidationEvent:   event,
+		PassengerName:     passenger.Name,
+		PassengerCategory: passenger.Category,
+		StopName:          stop.Name,
+	}
+	data, err := json.Marshal(rich)
 	if err != nil {
 		s.logger.Error("failed to marshal event for publish", "error", err)
 		return

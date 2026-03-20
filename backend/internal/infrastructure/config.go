@@ -20,12 +20,18 @@ type Config struct {
 func LoadConfig() (Config, error) {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
-		return Config{}, fmt.Errorf("DB_URL environment variable is required")
+		dbURL = os.Getenv("DATABASE_URL")
+	}
+	if dbURL == "" {
+		return Config{}, fmt.Errorf("DB_URL or DATABASE_URL environment variable is required")
 	}
 
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
-		return Config{}, fmt.Errorf("REDIS_ADDR environment variable is required")
+		redisAddr = os.Getenv("REDIS_URL")
+	}
+	if redisAddr == "" {
+		return Config{}, fmt.Errorf("REDIS_ADDR or REDIS_URL environment variable is required")
 	}
 
 	httpPort := os.Getenv("HTTP_PORT")

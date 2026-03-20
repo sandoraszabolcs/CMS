@@ -83,6 +83,7 @@ type Stats struct {
 	MostPopularOrigin      string         `json:"most_popular_origin"`
 	MostPopularDestination string         `json:"most_popular_destination"`
 	TripsByCategory        map[string]int `json:"trips_by_category"`
+	TripsByHour            map[int]int    `json:"trips_by_hour"`
 }
 
 // CheckinRequest holds the incoming checkin data.

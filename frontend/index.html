@@ -37,6 +37,23 @@
         .od-header { background: #1e293b; color: #94a3b8; font-weight: 600; font-size: 10px; }
         .od-value { color: #f8fafc; font-weight: 500; cursor: default; }
 
+        .charts-panel { flex: 0 0 auto; padding: 16px; border-bottom: 1px solid #334155; display: flex; gap: 16px; }
+        .chart-box { flex: 1; }
+        .chart-box h3 { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+
+        .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+        .cat-label { width: 75px; text-align: right; color: #94a3b8; flex-shrink: 0; }
+        .cat-bar-bg { flex: 1; height: 16px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+        .cat-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; min-width: 2px; }
+        .cat-count { width: 28px; color: #64748b; font-size: 10px; flex-shrink: 0; }
+
+        .hour-chart { display: flex; flex-direction: column; height: 95px; }
+        .hour-bars { display: flex; align-items: flex-end; gap: 1px; flex: 1; }
+        .hour-labels { display: flex; gap: 1px; }
+        .hour-bar { flex: 1; border-radius: 2px 2px 0 0; transition: height 0.4s ease; background: #3b82f6; }
+        .hour-bar.peak { background: #f59e0b; }
+        .hour-label { flex: 1; font-size: 8px; color: #64748b; text-align: center; height: 12px; line-height: 12px; }
+
         .feed-panel { flex: 1; padding: 16px; overflow: auto; }
         .feed-panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
 
@@ -86,6 +103,16 @@
             <div class="od-panel">
                 <h2>Matrice Origine-Destinație</h2>
                 <div id="od-grid" class="od-grid"></div>
+            </div>
+            <div class="charts-panel">
+                <div class="chart-box">
+                    <h3>Calatori per categorie</h3>
+                    <div id="cat-chart"></div>
+                </div>
+                <div class="chart-box">
+                    <h3>Ore de varf</h3>
+                    <div id="hour-chart" class="hour-chart"></div>
+                </div>
             </div>
             <div class="feed-panel">
                 <h2>Evenimente Live</h2>
@@ -345,11 +372,53 @@ const WSModule = (() => {
 
 // ─── Stats Module ───
 const StatsModule = (() => {
+    const categoryLabels = {
+        regular: 'Regular', student: 'Student', university: 'Universitar',
+        pensioner: 'Pensionar', disabled: 'Dizabilitate', veteran: 'Veteran'
+    };
+    const categoryColors = {
+        regular: '#64748b', student: '#3b82f6', university: '#8b5cf6',
+        pensioner: '#f59e0b', disabled: '#ef4444', veteran: '#10b981'
+    };
+
     function update(stats) {
         document.getElementById('stat-trips').textContent = stats.total_trips_today || 0;
         document.getElementById('stat-origin').textContent = stats.most_popular_origin || '—';
         document.getElementById('stat-dest').textContent = stats.most_popular_destination || '—';
+        renderCategoryChart(stats.trips_by_category || {});
+        renderHourChart(stats.trips_by_hour || {});
     }
+
+    function renderCategoryChart(data) {
+        const el = document.getElementById('cat-chart');
+        const max = Math.max(1, ...Object.values(data));
+        el.innerHTML = Object.entries(categoryLabels).map(([key, label]) => {
+            const count = data[key] || 0;
+            const pct = (count / max) * 100;
+            const color = categoryColors[key] || '#3b82f6';
+            return `<div class="cat-row">
+                <span class="cat-label">${label}</span>
+                <div class="cat-bar-bg"><div class="cat-bar" style="width:${pct}%;background:${color}"></div></div>
+                <span class="cat-count">${count}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function renderHourChart(data) {
+        const el = document.getElementById('hour-chart');
+        const max = Math.max(1, ...Object.values(data));
+        const bars = Array.from({ length: 24 }, (_, h) => {
+            const count = data[String(h)] || 0;
+            const pct = (count / max) * 100;
+            const isPeak = count >= max * 0.75 && count > 0;
+            return `<div class="hour-bar ${isPeak ? 'peak' : ''}" style="height:${pct}%" title="${h}:00 — ${count} validari"></div>`;
+        }).join('');
+        const labels = Array.from({ length: 24 }, (_, h) => {
+            return `<div class="hour-label">${h % 3 === 0 ? h : ''}</div>`;
+        }).join('');
+        el.innerHTML = `<div class="hour-bars">${bars}</div><div class="hour-labels">${labels}</div>`;
+    }
+
     return { update };
 })();
 
