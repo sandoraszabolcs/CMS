@@ -18,6 +18,7 @@ type Handler struct {
 	odMatrix   service.ODMatrixReader
 	stats      service.StatsReader
 	events     service.EventLister
+	resetter   service.Resetter
 	logger     *slog.Logger
 }
 
@@ -29,6 +30,7 @@ func NewHandler(
 	odMatrix service.ODMatrixReader,
 	stats service.StatsReader,
 	events service.EventLister,
+	resetter service.Resetter,
 	logger *slog.Logger,
 ) *Handler {
 	return &Handler{
@@ -38,6 +40,7 @@ func NewHandler(
 		odMatrix:   odMatrix,
 		stats:      stats,
 		events:     events,
+		resetter:   resetter,
 		logger:     logger,
 	}
 }
@@ -53,6 +56,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		v1.GET("/stops", h.getStops)
 		v1.GET("/events/recent", h.getRecentEvents)
 		v1.GET("/stats", h.getStats)
+		v1.POST("/reset", h.resetData)
 	}
 }
 
@@ -134,6 +138,15 @@ func (h *Handler) getStats(c *gin.Context) {
 		return
 	}
 	respondOK(c, s)
+}
+
+func (h *Handler) resetData(c *gin.Context) {
+	if err := h.resetter.Reset(c.Request.Context()); err != nil {
+		h.logger.Error("failed to reset data", "error", err)
+		respondError(c, http.StatusInternalServerError, CodeInternalError, "failed to reset data")
+		return
+	}
+	respondOK(c, gin.H{"message": "data reset complete"})
 }
 
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

@@ -20,12 +20,18 @@ type Worker interface {
 	Stop() error
 }
 
+// Resetter allows the simulator to trigger a data reset.
+type Resetter interface {
+	Reset(ctx context.Context) error
+}
+
 // Deps holds the simulator's dependencies.
 type Deps struct {
 	Validations repository.ValidationRepository
 	Vehicles    repository.VehicleRepository
 	Stops       repository.StopRepository
 	Passengers  repository.PassengerRepository
+	Resetter    Resetter
 	Redis       *redis.Client
 	Logger      *slog.Logger
 	Interval    time.Duration
@@ -104,6 +110,13 @@ func (s *simulator) Stop() error {
 	return nil
 }
 
+// isPeakHour returns true for hours 7-9 and 16-18.
+func isPeakHour(h int) bool {
+	return (h >= 7 && h <= 9) || (h >= 16 && h <= 18)
+}
+
+const maxTripsBeforeReset = 1000
+
 func (s *simulator) run(ctx context.Context, vehicles []domain.Vehicle) {
 	defer s.wg.Done()
 	ticker := time.NewTicker(s.deps.Interval)
@@ -119,7 +132,24 @@ func (s *simulator) run(ctx context.Context, vehicles []domain.Vehicle) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.tick(ctx, vehicles, cardIDs)
+			// Auto-reset at threshold.
+			count, err := s.deps.Validations.CountToday(ctx)
+			if err == nil && count >= maxTripsBeforeReset {
+				s.deps.Logger.Info("simulator: trip limit reached, resetting", "count", count)
+				if err := s.deps.Resetter.Reset(ctx); err != nil {
+					s.deps.Logger.Error("simulator: reset failed", "error", err)
+				}
+				continue
+			}
+
+			// Generate more events during peak hours.
+			n := 1
+			if isPeakHour(time.Now().UTC().Hour()) {
+				n = 3 + rand.IntN(3) // 3-5 events
+			}
+			for range n {
+				s.tick(ctx, vehicles, cardIDs)
+			}
 		}
 	}
 }

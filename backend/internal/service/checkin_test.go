@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/szabolcs/cms/internal/domain"
@@ -57,8 +58,23 @@ func (m *mockValidationRepo) InsertEventTx(_ context.Context, _ *sqlx.Tx, event 
 	return event, m.insertErr
 }
 
+func (m *mockValidationRepo) InsertEventAt(_ context.Context, event domain.ValidationEvent, _ time.Time) (domain.ValidationEvent, error) {
+	event.ID = int64(len(m.insertedEvents) + 1)
+	m.insertedEvents = append(m.insertedEvents, event)
+	return event, m.insertErr
+}
+
 func (m *mockValidationRepo) RecentEvents(_ context.Context, _ int) ([]domain.RecentEvent, error) {
 	return nil, nil
+}
+
+func (m *mockValidationRepo) CountToday(_ context.Context) (int, error) {
+	return len(m.insertedEvents), nil
+}
+
+func (m *mockValidationRepo) DeleteAll(_ context.Context) error {
+	m.insertedEvents = nil
+	return nil
 }
 
 func (m *mockValidationRepo) BeginTx(_ context.Context) (*sqlx.Tx, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/szabolcs/cms/internal/domain"
@@ -101,6 +102,34 @@ func (r *postgresValidationRepo) RecentEvents(ctx context.Context, limit int) ([
 		return nil, err
 	}
 	return events, nil
+}
+
+func (r *postgresValidationRepo) InsertEventAt(ctx context.Context, event domain.ValidationEvent, at time.Time) (domain.ValidationEvent, error) {
+	query := `
+		INSERT INTO validation_events (card_id, vehicle_id, event_type, stop_id, lat, lng, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at`
+
+	err := r.db.QueryRowContext(ctx, query,
+		event.CardID, event.VehicleID, event.EventType, event.StopID, event.Lat, event.Lng, at,
+	).Scan(&event.ID, &event.CreatedAt)
+	if err != nil {
+		return domain.ValidationEvent{}, err
+	}
+	return event, nil
+}
+
+func (r *postgresValidationRepo) CountToday(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM validation_events
+		WHERE event_type = 'checkout' AND created_at::date = CURRENT_DATE`)
+	return count, err
+}
+
+func (r *postgresValidationRepo) DeleteAll(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM validation_events")
+	return err
 }
 
 func (r *postgresValidationRepo) BeginTx(ctx context.Context) (*sqlx.Tx, error) {

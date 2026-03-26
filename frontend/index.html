@@ -93,6 +93,7 @@
             <div>Călătorii azi: <span class="stat-value" id="stat-trips">0</span></div>
             <div>Origine populară: <span class="stat-value" id="stat-origin">—</span></div>
             <div>Destinație populară: <span class="stat-value" id="stat-dest">—</span></div>
+            <button id="btn-reset" style="background:#dc2626;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Reset</button>
         </div>
     </div>
     <div class="container">
@@ -132,12 +133,19 @@ const APIModule = (() => {
         return res.json();
     }
 
+    async function post(path) {
+        const res = await fetch(base + path, { method: 'POST' });
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+    }
+
     return {
         getStops:        () => get('/stops'),
         getVehicles:     () => get('/vehicles'),
         getODMatrix:     () => get('/od-matrix'),
         getRecentEvents: () => get('/events/recent'),
         getStats:        () => get('/stats'),
+        reset:           () => post('/reset'),
     };
 })();
 
@@ -277,7 +285,7 @@ const ODModule = (() => {
 const FeedModule = (() => {
     const MAX_EVENTS = 30;
     const categoryLabels = {
-        student: 'Student', university: 'Universitar',
+        regular: '', student: 'Student', university: 'Universitar',
         pensioner: 'Pensionar', disabled: 'Dizabilitate', veteran: 'Veteran'
     };
 
@@ -319,7 +327,11 @@ const FeedModule = (() => {
         events.forEach(e => addEvent(e, false));
     }
 
-    return { addEvent, addEvents };
+    function clear() {
+        document.getElementById('event-feed').innerHTML = '';
+    }
+
+    return { addEvent, addEvents, clear };
 })();
 
 // ─── WebSocket Module ───
@@ -447,6 +459,22 @@ const StatsModule = (() => {
         MapModule.showEventPopup(event);
     });
     WSModule.connect();
+
+    // Reset button.
+    document.getElementById('btn-reset').addEventListener('click', async () => {
+        try {
+            await APIModule.reset();
+            const [m, events, s] = await Promise.all([
+                APIModule.getODMatrix().catch(() => []),
+                APIModule.getRecentEvents().catch(() => []),
+                APIModule.getStats().catch(() => ({})),
+            ]);
+            ODModule.render(m, stops);
+            FeedModule.clear();
+            FeedModule.addEvents(events);
+            StatsModule.update(s);
+        } catch (e) { console.error('Reset error:', e); }
+    });
 
     // Periodic refresh: vehicles every 3s, OD matrix + stats every 15s.
     setInterval(async () => {

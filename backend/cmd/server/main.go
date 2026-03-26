@@ -81,9 +81,10 @@ func main() {
 	odMatrixSvc := service.NewODMatrixService(odMatrixRepo)
 	statsSvc := service.NewStatsService(statsRepo)
 	eventSvc := service.NewEventService(validationRepo)
+	resetSvc := service.NewResetService(validationRepo, odMatrixRepo)
 
 	// Build HTTP handler.
-	handler := transporthttp.NewHandler(validationSvc, vehicleSvc, stopSvc, odMatrixSvc, statsSvc, eventSvc, logger)
+	handler := transporthttp.NewHandler(validationSvc, vehicleSvc, stopSvc, odMatrixSvc, statsSvc, eventSvc, resetSvc, logger)
 
 	// Build WebSocket hub.
 	hub := ws.NewHub(rdb, eventSvc, logger)
@@ -110,6 +111,7 @@ func main() {
 		Vehicles:    vehicleRepo,
 		Stops:       stopRepo,
 		Passengers:  passengerRepo,
+		Resetter:    resetSvc,
 		Redis:       rdb,
 		Logger:      logger,
 		Interval:    cfg.SimulatorInterval,
