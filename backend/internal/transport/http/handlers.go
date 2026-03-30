@@ -121,7 +121,7 @@ func (h *Handler) getStops(c *gin.Context) {
 }
 
 func (h *Handler) getRecentEvents(c *gin.Context) {
-	events, err := h.events.RecentEvents(c.Request.Context(), 20)
+	events, err := h.events.GetRecentEvents(c.Request.Context(), 20)
 	if err != nil {
 		h.logger.Error("failed to get recent events", "error", err)
 		respondError(c, http.StatusInternalServerError, CodeInternalError, "failed to fetch events")

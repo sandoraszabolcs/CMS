@@ -19,7 +19,7 @@ type ValidationRepository interface {
 	InsertEvent(ctx context.Context, event domain.ValidationEvent) (domain.ValidationEvent, error)
 	InsertEventAt(ctx context.Context, event domain.ValidationEvent, at time.Time) (domain.ValidationEvent, error)
 	InsertEventTx(ctx context.Context, tx *sqlx.Tx, event domain.ValidationEvent) (domain.ValidationEvent, error)
-	RecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error)
+	GetRecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error)
 	CountToday(ctx context.Context) (int, error)
 	DeleteAll(ctx context.Context) error
 	BeginTx(ctx context.Context) (*sqlx.Tx, error)

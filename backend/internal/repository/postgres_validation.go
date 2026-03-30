@@ -86,7 +86,7 @@ func (r *postgresValidationRepo) InsertEventTx(ctx context.Context, tx *sqlx.Tx,
 	return event, nil
 }
 
-func (r *postgresValidationRepo) RecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error) {
+func (r *postgresValidationRepo) GetRecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error) {
 	query := `
 		SELECT ve.id, ve.card_id, ve.vehicle_id, ve.event_type, ve.stop_id, ve.lat, ve.lng, ve.created_at,
 		       p.name AS passenger_name, p.category AS passenger_category, s.name AS stop_name

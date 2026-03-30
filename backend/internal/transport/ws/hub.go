@@ -140,7 +140,7 @@ func (h *Hub) broadcast(data []byte) {
 }
 
 func (h *Hub) sendInitialState(ctx context.Context, conn *websocket.Conn) {
-	events, err := h.events.RecentEvents(ctx, 10)
+	events, err := h.events.GetRecentEvents(ctx, 10)
 	if err != nil {
 		h.logger.Error("ws: failed to get initial events", "error", err)
 		return

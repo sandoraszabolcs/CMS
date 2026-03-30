@@ -9,7 +9,7 @@ import (
 
 // EventLister lists recent validation events.
 type EventLister interface {
-	RecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error)
+	GetRecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error)
 }
 
 // EventService implements EventLister.
@@ -21,6 +21,6 @@ func NewEventService(repo repository.ValidationRepository) *EventService {
 	return &EventService{repo: repo}
 }
 
-func (s *EventService) RecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error) {
-	return s.repo.RecentEvents(ctx, limit)
+func (s *EventService) GetRecentEvents(ctx context.Context, limit int) ([]domain.RecentEvent, error) {
+	return s.repo.GetRecentEvents(ctx, limit)
 }

@@ -64,7 +64,7 @@ func (m *mockValidationRepo) InsertEventAt(_ context.Context, event domain.Valid
 	return event, m.insertErr
 }
 
-func (m *mockValidationRepo) RecentEvents(_ context.Context, _ int) ([]domain.RecentEvent, error) {
+func (m *mockValidationRepo) GetRecentEvents(_ context.Context, _ int) ([]domain.RecentEvent, error) {
 	return nil, nil
 }
 
